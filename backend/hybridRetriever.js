@@ -1,4 +1,7 @@
 // hybridRetriever.js
+
+import { rerank } from "./coherererank.js";
+
 // Simple deduplication by content
 function deduplicateDocs(docs) {
   const seen = new Set();
@@ -16,11 +19,13 @@ export async function hybridRetriever(question, { vectorStore, bm25Engine, bm25D
 
   // 2. BM25 retriever
   const bm25Results = bm25Engine.search(question, 5);
+  
   const bm25DocsOnly = bm25Results.map(r => ({
     pageContent: bm25Docs[parseInt(r[0])],
     score: r[1], // BM25 score
     source: "bm25",
   }));
+console.log(bm25DocsOnly, "bm25");
 
   // 3. Normalize vector scores (higher = better)
   const vectorDocs = vectorResults.map(d => ({
@@ -37,7 +42,8 @@ export async function hybridRetriever(question, { vectorStore, bm25Engine, bm25D
 
   // 6. Re-rank (simple: sort by score desc)
   merged.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+  const reranked = await rerank(question, merged);
 
   // 7. Return top N
-  return merged.slice(0, 5).map(d => ({ pageContent: d.pageContent }));
+  return reranked.slice(0, 5);
 }

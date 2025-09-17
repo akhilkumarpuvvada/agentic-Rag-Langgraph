@@ -2,6 +2,7 @@
 import { StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
 import { checkTruthFullness } from "./guardrails.js";
+import { checkToxicity } from "./filters.js";
 
 // 1. State schema
 const GraphState = z.object({
@@ -15,7 +16,7 @@ const GraphState = z.object({
 async function retrieverNode(state, { retriever }) {
   console.log("🔎 RetrieverNode running...");
   const docs = await retriever.invoke(state.question);
-  const context = docs.map(d => d.pageContent).join("\n\n");
+  const context = docs.map((d) => d.pageContent).join("\n\n");
   return { context };
 }
 
@@ -24,13 +25,21 @@ async function answerNode(state, { llm }) {
   console.log("💡 AnswerNode running...");
   const messages = [
     { role: "system", content: "You are a helpful assistant." },
-    { role: "user", content: `Context:\n${state.context}\n\nQ: ${state.question}` },
+    {
+      role: "user",
+      content: `Context:\n${state.context}\n\nQ: ${state.question}`,
+    },
   ];
   const res = await llm.invoke(messages);
 
   const guard = await checkTruthFullness(res.content, state.context);
-  if(!guard.isFaithful) {
-    return { next: "fallback" } 
+  if (!guard.isFaithful) {
+    return { next: "fallback" };
+  }
+
+  const checkToxicity = await checkToxicity(res.content);
+  if (!checkToxicity.safe) {
+    return { next: "fallback" };
   }
   return { output: res.content };
 }
@@ -40,7 +49,10 @@ async function summaryNode(state, { llm }) {
   console.log("📝 SummaryNode running...");
   const messages = [
     { role: "system", content: "You are a concise summarizer." },
-    { role: "user", content: `Summarize in 1–2 sentences:\n\n${state.context}` },
+    {
+      role: "user",
+      content: `Summarize in 1–2 sentences:\n\n${state.context}`,
+    },
   ];
   const res = await llm.invoke(messages);
   return { output: res.content };
@@ -51,7 +63,10 @@ async function compareNode(state, { llm }) {
   console.log("⚖️ CompareNode running...");
   const messages = [
     { role: "system", content: "You compare concepts clearly." },
-    { role: "user", content: `Compare based on context:\n\n${state.context}\n\nQ: ${state.question}` },
+    {
+      role: "user",
+      content: `Compare based on context:\n\n${state.context}\n\nQ: ${state.question}`,
+    },
   ];
   const res = await llm.invoke(messages);
   return { output: res.content };
@@ -60,17 +75,19 @@ async function compareNode(state, { llm }) {
 // 6. Fallback node
 async function fallbackNode(state, { llm }) {
   console.log("❓ FallbackNode running...");
-  return { output: `❌ Sorry, I can only answer, if the question is relevant to data in the PDF. Your question: "${state.question}" is unsupported.` };
+  return {
+    output: `❌ Sorry, I can only answer, if the question is relevant to data in the PDF. Your question: "${state.question}" is unsupported.`,
+  };
 }
 
 // 7. LLM Router node
 async function llmRouterNode(state, { llm }) {
   console.log("🚦 LLMRouterNode running...");
 
-const messages = [
-  {
-    role: "system",
-    content: `You are a strict mode router.
+  const messages = [
+    {
+      role: "system",
+      content: `You are a strict mode router.
 Your job is to map the user request into exactly one of: answer, summary, compare, or fallback.
 
 Rules:
@@ -85,9 +102,12 @@ Important:
 - Always consider both the QUESTION and the CONTEXT.
 - Always return only one of: answer, summary, compare, fallback.
 - Do NOT add punctuation, explanations, or extra words.`,
-  },
-  { role: "user", content: `User asked: "${state.question}"\n\nContext:\n${state.context}` },
-];
+    },
+    {
+      role: "user",
+      content: `User asked: "${state.question}"\n\nContext:\n${state.context}`,
+    },
+  ];
 
   const res = await llm.invoke(messages);
   const normalized = res.content.trim().toLowerCase();

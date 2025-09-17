@@ -1,6 +1,7 @@
 // graph.js
 import { StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
+import { checkTruthFullness } from "./guardrails.js";
 
 // 1. State schema
 const GraphState = z.object({
@@ -26,6 +27,11 @@ async function answerNode(state, { llm }) {
     { role: "user", content: `Context:\n${state.context}\n\nQ: ${state.question}` },
   ];
   const res = await llm.invoke(messages);
+
+  const guard = await checkTruthFullness(res.content, state.context);
+  if(!guard.isFaithful) {
+    return { next: "fallback" } 
+  }
   return { output: res.content };
 }
 

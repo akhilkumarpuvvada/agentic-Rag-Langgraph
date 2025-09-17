@@ -1,4 +1,3 @@
-// filters.js
 import { initLLM } from "./llm.js";
 
 const llm = initLLM();
@@ -7,7 +6,7 @@ const llm = initLLM();
  * Check if an answer contains abusive/toxic content.
  * Returns { safe: boolean, reason: string }
  */
-export async function checkToxicity(answer) {
+export const checkToxicity = async (answer) => {
   const messages = [
     { role: "system", content: "You are a strict safety filter." },
     {
@@ -24,4 +23,4 @@ Text:\n${answer}`,
   return {
     safe: reply.includes("safe"),
   };
-}
+};

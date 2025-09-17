@@ -1,9 +1,6 @@
-// hybridRetriever.js
-
 import { rerank } from "./coherererank.js";
 import { queryExpander } from "./queryExapander.js";
 
-// Simple deduplication by content
 function deduplicateDocs(docs) {
   const seen = new Set();
   return docs.filter((d) => {
@@ -42,8 +39,12 @@ export async function hybridRetriever(
 
   allResults = deduplicateDocs(allResults);
 
-  const reranked = await rerank(question, allResults);
+  const reranked = await rerank(question, allResults, 5);
+  console.log(reranked, "re");
+  
+  if(!reranked || reranked.length === 0) {
+    return { context: null, next: "fallback"}
+  }
 
-  // 7. Return top N
-  return reranked.slice(0, 5);
+ return { context: reranked.map(d => d.pageContent).join("\n\n") };
 }

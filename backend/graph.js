@@ -3,7 +3,7 @@ import { StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
 import { checkTruthFullness } from "./guardrails.js";
 import { checkToxicity } from "./filters.js";
-
+import { gradeAnswer } from "./grading.js";
 // 1. State schema
 const GraphState = z.object({
   question: z.string(),
@@ -15,10 +15,15 @@ const GraphState = z.object({
 // 2. Retriever node
 async function retrieverNode(state, { retriever }) {
   console.log("🔎 RetrieverNode running...");
-  const docs = await retriever.invoke(state.question);
-  const context = docs.map((d) => d.pageContent).join("\n\n");
-  return { context };
+  const result = await retriever.invoke(state.question);
+
+  if (result.next === "fallback") {
+    return { next: "fallback" };
+  }
+
+  return { context: result.context };
 }
+
 
 // 3. Answer node
 async function answerNode(state, { llm }) {
@@ -37,10 +42,18 @@ async function answerNode(state, { llm }) {
     return { next: "fallback" };
   }
 
-  const checkToxicity = await checkToxicity(res.content);
-  if (!checkToxicity.safe) {
+  const checkSafety = await checkToxicity(res.content);
+  if (!checkSafety.safe) {
     return { next: "fallback" };
   }
+  
+  const grade = await gradeAnswer(res.content, state.question, state.context);
+  if (!grade.pass) {
+    console.log(`⚠️ Grading failed → ${grade.reason}`);
+    return { next: "fallback" };
+  }
+  
+  
   return { output: res.content };
 }
 

@@ -1,4 +1,3 @@
-// reranker.js
 import { CohereClient } from "cohere-ai";
 import dotenv from "dotenv";
 dotenv.config();
@@ -7,13 +6,7 @@ const cohere = new CohereClient({
   token: process.env.COHERE_API_KEY,
 });
 
-/**
- * Rerank documents based on query relevance.
- * @param {string} query - User question
- * @param {Array<{pageContent: string, score?: number, source?: string}>} docs - Candidate docs
- * @returns {Promise<Array<{pageContent: string, score: number, source?: string}>>}
- */
-export async function rerank(query, docs) {    
+export async function rerank(query, docs, topK) {    
     
   if (!docs || docs.length === 0) return [];
 
@@ -25,7 +18,7 @@ export async function rerank(query, docs) {
   });
   
   // ✅ Map results back using index
-  return response.results.map(r => {
+  const results = response.results.map(r => {
     const originalDoc = docs[r.index];    
     return {
       pageContent: originalDoc?.pageContent ?? "",
@@ -33,4 +26,7 @@ export async function rerank(query, docs) {
       source: originalDoc?.source ?? "unknown",
     };
   });
+
+  results.slice((a,b) =>b.score - a.score );
+  return results.splice(0, topK)
 }

@@ -60,7 +60,32 @@ async function initPipeline() {
 }
 
 // ---- API Endpoints ----
+app.post("/ingest", async (req, res) => {
+  try {
+    const { path } = req.body;
+    if (!path) return res.status(400).json({ error: "Missing PDF path" });
 
+    console.log(`📥 Ingesting new PDF: ${path}`);
+    const docs = await loadAndSplitPDF(path);
+
+    // 1. Update VectorStore
+    await vectorStore.addDocuments(docs);
+    console.log(`✅ Added ${docs.length} docs to LanceDB`);
+
+    // 2. Update BM25
+    docs.forEach((doc, i) => {
+      bm25Docs.push(doc.pageContent);
+      bm25Engine.addDoc({ body: doc.pageContent }, (bm25Docs.length - 1).toString());
+    });
+    bm25Engine.consolidate();
+    console.log("✅ BM25 index updated");
+
+    res.json({ success: true, message: "Index updated!" });
+  } catch (err) {
+    console.error("❌ Ingest error:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 // Ask a question
 app.post("/ask", async (req, res) => {
   try {

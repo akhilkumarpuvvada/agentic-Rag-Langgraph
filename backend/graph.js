@@ -1,9 +1,9 @@
 // graph.js
 import { StateGraph } from "@langchain/langgraph";
 import { z } from "zod";
-import { checkTruthFullness } from "./guardrails.js";
-import { checkToxicity } from "./filters.js";
-import { gradeAnswer } from "./grading.js";
+import { checkTruthFullness } from "./guardrails/guardrails.js";
+import { checkToxicity } from "./guardrails/filters.js";
+import { gradeAnswer } from "./guardrails/grading.js";
 // 1. State schema
 const GraphState = z.object({
   question: z.string(),

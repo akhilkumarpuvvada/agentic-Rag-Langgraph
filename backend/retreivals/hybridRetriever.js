@@ -1,5 +1,5 @@
 import { rerank } from "./coherererank.js";
-import { queryExpander } from "./queryExapander.js";
+import { queryExpander } from "../guardrails/queryExapander.js";
 
 function deduplicateDocs(docs) {
   const seen = new Set();

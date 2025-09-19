@@ -4,9 +4,9 @@ import cors from "cors";
 
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { loadAndSplitPDF } from "./pdfLoader.js";
-import { initVectorStore } from "./db.js";
-import { initBM25 } from "./bm25.js";
-import { hybridRetriever } from "./hybridRetriever.js";
+import { initVectorStore } from "./retreivals/db.js";
+import { initBM25 } from "./retreivals/bm25.js";
+import { hybridRetriever } from "./retreivals/hybridRetriever.js";
 import { initLLM } from "./llm.js";
 import { buildGraph } from "./graph.js";
 import { OPENAI_API_KEY } from "./config.js";

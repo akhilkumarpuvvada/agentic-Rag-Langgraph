@@ -1,4 +1,4 @@
-import { initLLM } from "./llm.js";
+import { initLLM } from "../llm.js";
 import { z } from "zod";
 import { StructuredOutputParser } from "langchain/output_parsers";
 

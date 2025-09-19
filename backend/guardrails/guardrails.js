@@ -1,4 +1,4 @@
-import { initLLM } from "./llm.js";
+import { initLLM } from "../llm.js";
 
 const llm = initLLM();
 
